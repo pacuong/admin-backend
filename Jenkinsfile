@@ -52,25 +52,25 @@ pipeline {
 
         stage('Deploy to VPS') {
             steps {
-                sshagent (credentials: ["${DEPLOY_SERVER}"]) {
-                    sh """
-                        ssh -o StrictHostKeyChecking=no root@206.189.150.2 << 'EOF'
-                        set -e
-                        cd ${DEPLOY_PATH}
+                sshagent(credentials: ['root']) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no root@206.189.150.2 "
+                            set -e
+                            echo 'Pulling new image...'
+                            docker pull pacuong/backend-zma:latest
 
-                        echo 'Pulling new image...'
-                        docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}
+                            echo 'Restarting container...'
+                            cd /root/backend-app
+                            docker compose down
+                            docker compose up -d --remove-orphans
+                            docker image prune -f
 
-                        echo 'Restarting container...'
-                        docker compose down
-                        docker compose up -d --remove-orphans
-
-                        docker image prune -f
-                        EOF
-                    """
+                            echo '✅ Deploy thành công trên VPS'
+                        "
+                    '''
                 }
             }
-        }
+        }   
     }
 
     post {

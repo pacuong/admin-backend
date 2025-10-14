@@ -6,7 +6,7 @@ pipeline {
         DOCKER_TAG = "latest"
         REGISTRY_CREDENTIALS = 'dockerhub-credentials'
         DEPLOY_SERVER = 'deploy-server' // SSH credentials ID
-        DEPLOY_PATH = '/home/ubuntu/backend-app'
+        DEPLOY_PATH = '/root/backend-app'
         GIT_REPO = 'https://github.com/pacuong/admin-backend'
     }
 

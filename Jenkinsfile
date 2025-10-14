@@ -54,7 +54,7 @@ pipeline {
             steps {
                 sshagent (credentials: ["${DEPLOY_SERVER}"]) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@206.189.150.2 << 'EOF'
+                        ssh -o StrictHostKeyChecking=no root@206.189.150.2 << 'EOF'
                         set -e
                         cd ${DEPLOY_PATH}
 

@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  backend:
+    image: mhoa404/backend-zma:latest
+    container_name: backend-zma
+    ports:
+      - "5000:8080"
+    env_file:
+      - .env
+    restart: always

@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   backend:
-    image: mhoa404/backend-zma:latest
+    image: pacuong/backend-zma:latest
     container_name: backend-zma
     ports:
       - "5000:8080"

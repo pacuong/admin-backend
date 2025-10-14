@@ -5,15 +5,17 @@ pipeline {
         DOCKER_IMAGE = "pacuong/backend-zma"
         DOCKER_TAG = "latest"
         REGISTRY_CREDENTIALS = 'dockerhub-credentials'
-        DEPLOY_SERVER = 'deploy-server' // cấu hình SSH trong Jenkins credentials
+        DEPLOY_SERVER = 'deploy-server' // SSH credentials ID
         DEPLOY_PATH = '/home/ubuntu/backend-app'
-        GIT_REPO = 'https://github.com/mhoa404/backend-zma.git'
+        GIT_REPO = 'https://github.com/pacuong/admin-backend'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: "${GIT_REPO}"
+                git branch: 'main',
+                    url: "${GIT_REPO}",
+                    credentialsId: 'github-pat'
             }
         }
 
@@ -52,7 +54,7 @@ pipeline {
             steps {
                 sshagent (credentials: ["${DEPLOY_SERVER}"]) {
                     sh """
-                        ssh -o StrictHostKeyChecking=no ubuntu@<YOUR_SERVER_IP> << 'EOF'
+                        ssh -o StrictHostKeyChecking=no ubuntu@206.189.150.2 << 'EOF'
                         set -e
                         cd ${DEPLOY_PATH}
 

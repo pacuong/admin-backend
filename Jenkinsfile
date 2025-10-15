@@ -5,43 +5,50 @@ pipeline {
         DOCKER_IMAGE = "pacuong/backend-zma"
         DOCKER_TAG = "latest"
         REGISTRY_CREDENTIALS = 'dockerhub-credentials'
-        DEPLOY_SERVER = 'deploy-server' // SSH credentials ID
-        DEPLOY_PATH = '/root/backend-app'
-        GIT_REPO = 'https://github.com/pacuong/admin-backend'
+        GIT_REPO = "https://github.com/pacuong/admin-backend.git"
+        DEPLOY_PATH = "/root/backend-app"
     }
 
     stages {
-        stage('Checkout') {
+
+        stage('Checkout Source') {
             steps {
-                git branch: 'main',
-                    url: "${GIT_REPO}",
-                    credentialsId: 'github-pat'
+                echo "📦 Cloning public repository..."
+                sh "git clone -b main ${GIT_REPO} ."
             }
         }
 
         stage('Install Dependencies') {
             steps {
-                sh 'npm install'
+                echo "📥 Installing dependencies..."
+                sh "npm install"
             }
         }
 
         stage('Build Project') {
             steps {
-                sh 'npm run build'
+                echo "🏗️ Building NestJS project..."
+                sh "npm run build"
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                sh """
-                    docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
-                """
+                echo "🐳 Building Docker image..."
+                sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
             }
         }
 
         stage('Push to Docker Hub') {
             steps {
-                withCredentials([usernamePassword(credentialsId: "${REGISTRY_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                echo "📤 Pushing image to Docker Hub..."
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "${REGISTRY_CREDENTIALS}",
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
                     sh """
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
@@ -50,30 +57,35 @@ pipeline {
             }
         }
 
-        stage('Deploy to VPS') {
+        stage('Deploy Backend') {
             steps {
-                sh '''
-                    echo "Pulling new image..."
-                    docker pull pacuong/backend-zma:latest
-
-                    echo "Restarting container..."
-                    cd /root/backend-app
-                    docker compose down
-                    docker compose up -d --remove-orphans
-
-                    docker image prune -f
-                    echo "✅ Deploy backend thành công!"
-                '''
+                echo "🚀 Deploying backend container..."
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: "${REGISTRY_CREDENTIALS}",
+                        usernameVariable: 'DOCKER_USER',
+                        passwordVariable: 'DOCKER_PASS'
+                    )
+                ]) {
+                    sh """
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        cd ${DEPLOY_PATH}
+                        docker compose pull
+                        docker compose up -d --remove-orphans
+                        docker image prune -f
+                        echo "✅ Backend ZMA deployed successfully!"
+                    """
+                }
             }
         }
     }
 
     post {
         success {
-            echo '✅ Deploy thành công!'
+            echo "✅ CI/CD pipeline completed successfully!"
         }
         failure {
-            echo '❌ Deploy thất bại!'
+            echo "❌ CI/CD pipeline failed. Check Jenkins logs for details."
         }
     }
 }

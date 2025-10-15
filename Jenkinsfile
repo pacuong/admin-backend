@@ -10,14 +10,6 @@ pipeline {
     }
 
     stages {
-
-        stage('Checkout Source') {
-            steps {
-                echo "📦 Cloning public repository..."
-                sh "git clone -b main ${GIT_REPO} ."
-            }
-        }
-
         stage('Install Dependencies') {
             steps {
                 echo "📥 Installing dependencies..."

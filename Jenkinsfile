@@ -6,7 +6,7 @@ pipeline {
         DOCKER_TAG = "latest"
         REGISTRY_CREDENTIALS = 'dockerhub-credentials'
         GIT_REPO = "https://github.com/pacuong/admin-backend.git"
-        DEPLOY_PATH = "/root/backend-app"
+        DEPLOY_PATH = "/var/lib/backend-app"
     }
 
     stages {

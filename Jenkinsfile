@@ -9,7 +9,6 @@ pipeline {
         // Jenkins credentials IDs
         REGISTRY_CREDENTIALS = 'dockerhub-credentials'
         SSH_CREDENTIALS      = 'aws-ssh-key'
-        GIT_CREDENTIALS      = 'gh_ssh'
 
         // Git repository
         GIT_REPO = "https://github.com/pacuong/admin-backend.git"
@@ -19,23 +18,16 @@ pipeline {
         stage('Checkout Code') {
             steps {
                 echo "📥 Cloning repository..."
-                git branch: 'main', url: "${GIT_REPO}", credentialsId: "${GIT_CREDENTIALS}"
+                git branch: 'main', url: "${GIT_REPO}", credentialsId: 'gh_ssh'
             }
         }
 
-        stage('Install Dependencies') {
-            agent { docker { image 'node:20-alpine' } } // Node environment
+        stage('Install & Build Project') {
             steps {
-                echo "📦 Installing Node.js dependencies..."
-                sh 'npm install'
-            }
-        }
-
-        stage('Build Project') {
-            agent { docker { image 'node:20-alpine' } } // Node environment
-            steps {
-                echo "🏗️ Building NestJS project..."
-                sh 'npm run build'
+                echo "📦 Installing dependencies and building project in Node container..."
+                sh '''
+                    docker run --rm -v $WORKSPACE:/app -w /app node:20-alpine sh -c "npm install && npm run build"
+                '''
             }
         }
 

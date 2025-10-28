@@ -7,14 +7,12 @@ pipeline {
         DOCKER_TAG   = "latest"
 
         // Jenkins credentials IDs
-        GIT_CREDENTIALS      = 'gh_ssh'             // GitHub token for private repo
         REGISTRY_CREDENTIALS = 'dockerhub-credentials'
         SSH_CREDENTIALS      = 'aws-ssh-key'
+        GIT_CREDENTIALS      = 'gh_ssh'
 
-        // Git repository and remote server info
-        GIT_REPO    = "https://github.com/pacuong/admin-backend.git"
-        REMOTE_HOST = "3.27.31.160"
-        REMOTE_USER = "root"
+        // Git repository
+        GIT_REPO = "https://github.com/pacuong/admin-backend.git"
     }
 
     stages {
@@ -26,16 +24,18 @@ pipeline {
         }
 
         stage('Install Dependencies') {
+            agent { docker { image 'node:20-alpine' } } // Node environment
             steps {
                 echo "📦 Installing Node.js dependencies..."
-                sh "npm install"
+                sh 'npm install'
             }
         }
 
         stage('Build Project') {
+            agent { docker { image 'node:20-alpine' } } // Node environment
             steps {
                 echo "🏗️ Building NestJS project..."
-                sh "npm run build"
+                sh 'npm run build'
             }
         }
 
@@ -83,7 +83,7 @@ pipeline {
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
 
                         # SSH to remote server
-                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} << 'EOF'
+                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no root@3.27.31.160 << 'EOF'
                             echo "📦 Pulling latest image..."
                             docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}
 
@@ -107,7 +107,7 @@ pipeline {
             echo "✅ CI/CD pipeline completed successfully!"
         }
         failure {
-            echo "❌ CI/CD pipeline failed! Check Jenkins logs for details."
+            echo "❌ CI/CD pipeline failed! Check logs for details."
         }
     }
 }

@@ -15,12 +15,6 @@ pipeline {
     }
 
     stages {
-        stage('Checkout Code') {
-            steps {
-                echo "📥 Cloning repository..."
-                git branch: 'main', url: "${GIT_REPO}", credentialsId: 'gh_ssh'
-            }
-        }
 
         stage('Install & Build Project') {
             steps {

@@ -1,110 +1,43 @@
 pipeline {
     agent any
-
     environment {
-        // Docker image info
         DOCKER_IMAGE = "pacuong/backend-zma"
         DOCKER_TAG   = "latest"
-
-        // Jenkins credentials IDs
         REGISTRY_CREDENTIALS = 'dockerhub-credentials'
-        SSH_CREDENTIALS      = 'aws-ssh-key'
-        GIT_CREDENTIALS      = 'gh_ssh'
-
-        // Git repository
         GIT_REPO = "https://github.com/pacuong/admin-backend.git"
-
-        // Remote deploy path
-        DEPLOY_PATH = "/var/lib/backend-app"
     }
 
     stages {
-
         stage('Checkout Code') {
             steps {
-                echo "📥 Cloning repository..."
-                sh "rm -rf \$WORKSPACE/*"
-                git branch: 'main', url: "${GIT_REPO}", credentialsId: "${GIT_CREDENTIALS}"
+                git branch: 'main', url: "${GIT_REPO}", credentialsId: 'gh_token'
             }
         }
 
         stage('Install & Build Project') {
             steps {
-                echo "📦 Installing dependencies and building project in Node container..."
-                sh '''
-                    docker run --rm -v $WORKSPACE:/app -w /app node:20-alpine sh -c "npm install && npm run build"
-                '''
+                sh 'npm install'
+                sh 'npm run build'
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo "🐳 Building Docker image..."
                 sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
             }
         }
 
         stage('Push Docker Image') {
             steps {
-                echo "📤 Pushing Docker image to Docker Hub..."
-                withCredentials([
-                    usernamePassword(
-                        credentialsId: "${REGISTRY_CREDENTIALS}",
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
-                    sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
-                    '''
-                }
-            }
-        }
-
-        stage('Deploy to Remote Server') {
-            steps {
-                echo "🚀 Deploying backend on remote server..."
-                withCredentials([
-                    sshUserPrivateKey(
-                        credentialsId: "${SSH_CREDENTIALS}",
-                        keyFileVariable: 'SSH_KEY'
-                    ),
-                    usernamePassword(
-                        credentialsId: "${REGISTRY_CREDENTIALS}",
-                        usernameVariable: 'DOCKER_USER',
-                        passwordVariable: 'DOCKER_PASS'
-                    )
-                ]) {
-                    sh '''
-                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no root@3.27.31.160 << 'EOF'
-                            echo "📦 Logging into Docker Hub..."
-                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-
-                            echo "📥 Pulling latest image..."
-                            docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}
-
-                            echo "🧹 Stopping old container..."
-                            docker stop backend-zma || true
-                            docker rm backend-zma || true
-
-                            echo "🚀 Running new container..."
-                            docker run -d --name backend-zma -p 5000:8080 ${DOCKER_IMAGE}:${DOCKER_TAG}
-
-                            echo "✅ Deployment complete!"
-                        EOF
-                    '''
+                withCredentials([usernamePassword(credentialsId: "${REGISTRY_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin'
+                    sh "docker push ${DOCKER_IMAGE}:${DOCKER_TAG}"
                 }
             }
         }
     }
-
     post {
-        success {
-            echo "✅ CI/CD pipeline completed successfully!"
-        }
-        failure {
-            echo "❌ CI/CD pipeline failed! Check logs for details."
-        }
+        success { echo "✅ Pipeline completed successfully!" }
+        failure { echo "❌ Pipeline failed, check logs." }
     }
 }

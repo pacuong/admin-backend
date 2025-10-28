@@ -1,61 +1,38 @@
 pipeline {
     agent any
-
     environment {
+        GIT_REPO = "https://github.com/pacuong/admin-backend.git"
         DOCKER_IMAGE = "pacuong/backend-zma"
         DOCKER_TAG   = "latest"
-        REGISTRY_CREDENTIALS = 'dockerhub-creds'     // 👈 trùng với ID bạn đặt trong Jenkins
-        GIT_REPO = "https://github.com/pacuong/admin-backend.git"
     }
 
     stages {
-        stage('Checkout Code') {
+        stage('Checkout') {
             steps {
-                echo "🔄 Checking out source code from GitHub..."
-                git branch: 'main', url: "${GIT_REPO}", credentialsId: 'gh_token'
-            }
-        }
-
-        stage('Install & Build Project') {
-            steps {
-                echo "📦 Installing dependencies..."
-                sh '''
-                    npm install
-                    npm run build
-                '''
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                echo "🐳 Building Docker image ${DOCKER_IMAGE}:${DOCKER_TAG}..."
-                sh "docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} ."
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                echo "📤 Pushing image to Docker Hub..."
-                withCredentials([usernamePassword(credentialsId: "${REGISTRY_CREDENTIALS}", usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                deleteDir() // xoá sạch workspace cũ
+                withCredentials([usernamePassword(credentialsId: 'gh_token', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
                     sh '''
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
+                        git clone https://$GIT_USER:$GIT_TOKEN@github.com/pacuong/admin-backend.git .
+                        git checkout main
                     '''
                 }
             }
         }
 
-        stage('Deploy to Server') {
+        stage('Build') {
             steps {
-                echo "🚀 Deploying to remote server..."
-                sshagent(['ssh-pacuong']) {
+                sh 'npm install'
+                sh 'npm run build'
+            }
+        }
+
+        stage('Docker Build & Push') {
+            steps {
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no pacuong@3.27.31.160 '
-                            docker pull ${DOCKER_IMAGE}:${DOCKER_TAG} &&
-                            docker stop backend-zma || true &&
-                            docker rm backend-zma || true &&
-                            docker run -d --name backend-zma -p 3000:3000 ${DOCKER_IMAGE}:${DOCKER_TAG}
-                        '
+                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                        docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
                     '''
                 }
             }
@@ -63,11 +40,7 @@ pipeline {
     }
 
     post {
-        success {
-            echo "✅ Pipeline completed successfully!"
-        }
-        failure {
-            echo "❌ Pipeline failed — check Jenkins logs."
-        }
+        success { echo "✅ Build & Push success!" }
+        failure { echo "❌ Build failed, check logs!" }
     }
 }

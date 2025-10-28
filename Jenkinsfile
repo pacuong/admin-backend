@@ -9,12 +9,24 @@ pipeline {
         // Jenkins credentials IDs
         REGISTRY_CREDENTIALS = 'dockerhub-credentials'
         SSH_CREDENTIALS      = 'aws-ssh-key'
+        GIT_CREDENTIALS      = 'gh_ssh'
 
         // Git repository
         GIT_REPO = "https://github.com/pacuong/admin-backend.git"
+
+        // Remote deploy path
+        DEPLOY_PATH = "/var/lib/backend-app"
     }
 
     stages {
+
+        stage('Checkout Code') {
+            steps {
+                echo "📥 Cloning repository..."
+                sh "rm -rf \$WORKSPACE/*"
+                git branch: 'main', url: "${GIT_REPO}", credentialsId: "${GIT_CREDENTIALS}"
+            }
+        }
 
         stage('Install & Build Project') {
             steps {
@@ -52,7 +64,7 @@ pipeline {
 
         stage('Deploy to Remote Server') {
             steps {
-                echo "🚀 Deploying container on remote server..."
+                echo "🚀 Deploying backend on remote server..."
                 withCredentials([
                     sshUserPrivateKey(
                         credentialsId: "${SSH_CREDENTIALS}",
@@ -65,12 +77,11 @@ pipeline {
                     )
                 ]) {
                     sh '''
-                        # Login Docker on remote host
-                        echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-
-                        # SSH to remote server
                         ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no root@3.27.31.160 << 'EOF'
-                            echo "📦 Pulling latest image..."
+                            echo "📦 Logging into Docker Hub..."
+                            echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
+
+                            echo "📥 Pulling latest image..."
                             docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}
 
                             echo "🧹 Stopping old container..."

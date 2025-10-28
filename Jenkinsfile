@@ -64,7 +64,7 @@ pipeline {
                 ]) {
                     sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no root@139.59.109.44 << EOF
+                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no root@3.27.31.160 << EOF
                         echo "📦 Pulling latest image from Docker Hub..."
                         docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}
 

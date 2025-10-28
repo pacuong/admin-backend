@@ -1,24 +1,26 @@
 pipeline {
-    agent any
+    agent {
+        docker { image 'node:20-alpine' } // Node.js environment for all stages
+    }
 
     environment {
-        // Docker image info
         DOCKER_IMAGE = "pacuong/backend-zma"
         DOCKER_TAG   = "latest"
 
-        // Jenkins credentials IDs
+        GIT_CREDENTIALS      = 'gh_ssh'            // GitHub token credential ID
         REGISTRY_CREDENTIALS = 'dockerhub-credentials'
         SSH_CREDENTIALS      = 'aws-ssh-key'
 
-        // Git repository
         GIT_REPO = "https://github.com/pacuong/admin-backend.git"
+        REMOTE_HOST = "3.27.31.160"
+        REMOTE_USER = "root"
     }
 
     stages {
         stage('Checkout Code') {
             steps {
                 echo "📥 Cloning repository..."
-                git branch: 'main', url: "${GIT_REPO}"
+                git branch: 'main', url: "${GIT_REPO}", credentialsId: "${GIT_CREDENTIALS}"
             }
         }
 
@@ -45,7 +47,7 @@ pipeline {
 
         stage('Push Docker Image') {
             steps {
-                echo "📤 Pushing Docker image to Docker Hub..."
+                echo "📤 Pushing Docker image..."
                 withCredentials([
                     usernamePassword(
                         credentialsId: "${REGISTRY_CREDENTIALS}",
@@ -76,11 +78,8 @@ pipeline {
                     )
                 ]) {
                     sh '''
-                        # Login Docker on remote host
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-
-                        # SSH to remote server
-                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no root@3.27.31.160 << 'EOF'
+                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} << 'EOF'
                             echo "📦 Pulling latest image..."
                             docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}
 
@@ -104,7 +103,7 @@ pipeline {
             echo "✅ CI/CD pipeline completed successfully!"
         }
         failure {
-            echo "❌ CI/CD pipeline failed! Check logs for details."
+            echo "❌ CI/CD pipeline failed. Check logs for details."
         }
     }
 }

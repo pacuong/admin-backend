@@ -6,7 +6,6 @@ pipeline {
         DOCKER_TAG = "latest"
         REGISTRY_CREDENTIALS = 'dockerhub-credentials'
         GIT_REPO = "https://github.com/pacuong/admin-backend.git"
-        DEPLOY_PATH = "/var/lib/backend-app"
     }
 
     stages {
@@ -41,32 +40,44 @@ pipeline {
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
-                    sh """
+                    sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
                         docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
-                    """
+                    '''
                 }
             }
         }
 
         stage('Deploy Backend') {
             steps {
-                echo "🚀 Deploying backend container..."
+                echo "🚀 Deploying backend container on remote server..."
                 withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'aws-ssh-key',
+                        keyFileVariable: 'SSH_KEY'
+                    ),
                     usernamePassword(
                         credentialsId: "${REGISTRY_CREDENTIALS}",
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )
                 ]) {
-                    sh """
+                    sh '''
                         echo "$DOCKER_PASS" | docker login -u "$DOCKER_USER" --password-stdin
-                        cd ${DEPLOY_PATH}
-                        docker compose pull
-                        docker compose up -d --remove-orphans
-                        docker image prune -f
+                        ssh -i "$SSH_KEY" -o StrictHostKeyChecking=no root@139.59.109.44 << EOF
+                        echo "📦 Pulling latest image from Docker Hub..."
+                        docker pull ${DOCKER_IMAGE}:${DOCKER_TAG}
+
+                        echo "🧹 Stopping old container (if any)..."
+                        docker stop backend-zma || true
+                        docker rm backend-zma || true
+
+                        echo "🚀 Running new container..."
+                        docker run -d --name backend-zma -p 5000:8080 ${DOCKER_IMAGE}:${DOCKER_TAG}
+
                         echo "✅ Backend ZMA deployed successfully!"
-                    """
+                        EOF
+                    '''
                 }
             }
         }

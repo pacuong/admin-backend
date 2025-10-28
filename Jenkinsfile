@@ -1,5 +1,11 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'node:20'
+            args '-v /var/run/docker.sock:/var/run/docker.sock'
+        }
+    }
+
     environment {
         GIT_REPO = "https://github.com/pacuong/admin-backend.git"
         DOCKER_IMAGE = "pacuong/backend-zma"
@@ -9,7 +15,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                deleteDir() // xoá sạch workspace cũ
+                deleteDir()
                 withCredentials([usernamePassword(credentialsId: 'gh_token', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_TOKEN')]) {
                     sh '''
                         git clone https://$GIT_USER:$GIT_TOKEN@github.com/pacuong/admin-backend.git .
@@ -21,8 +27,10 @@ pipeline {
 
         stage('Build') {
             steps {
-                sh 'npm install'
-                sh 'npm run build'
+                sh '''
+                    npm install
+                    npm run build
+                '''
             }
         }
 
